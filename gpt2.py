@@ -48,6 +48,7 @@ def get_data() -> list[str]:
     if not os.path.exists(input_path_):
         url_ = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
         urllib.request.urlretrieve(url_, "input.txt")
+        docs = [line.strip() for line in open(input_path_) if line.strip()]
 
     else:
         docs = [line.strip() for line in open(input_path_) if line.strip()]
