@@ -5,6 +5,9 @@ Teardown del script de Karpathy donde implementa el algoritmo de GPT2
 El original se puede encontrar en este enlace
 https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95
 
+Una visualización muy muy útil para entender GPT2 y el entrenamiento es
+esta página web:
+https://ko-microgpt.vercel.app/#lesson-1
 
 The most atomic way to train and run inference for a GPT in pure, dependency-free
 Python. This file is the complete algorithm. Everything else is just efficiency.
@@ -104,6 +107,21 @@ class Value:
         # local derivative of this node w.r.t. its children
         self._local_grads = local_grads
 
+    def __repr__(self):
+        _repr = f"""
+        Value(
+            data={self.data},
+            children={self._children},
+            local_grads={self._local_grads}
+        )
+        """
+
+        _repr = f"""
+        Value(data={self.data})
+        """
+
+        return _repr
+
     def __add__(self, other: Union[Value, int]) -> Value:
         """Suma self.data con other.data"""
 
@@ -185,25 +203,58 @@ head_dim = n_embd // n_head  # derived dimension of each head
 
 
 def matrix(nout, nin, std=0.08):
-    return [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
+    r_ = [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
+    print(f"El tamaño de nuestra matriz es ({nout}, {nin})")
+    # print(r_)
+    return r_
+
+
+# completamente random
+print("wte")
+wte = matrix(vocab_size, n_embd)
+
+# completamente random
+print("wpe")
+wpe = matrix(block_size, n_embd)
+
+print("lm_head")
+lm_head = matrix(vocab_size, n_embd)
 
 
 state_dict = {
-    "wte": matrix(vocab_size, n_embd),
-    "wpe": matrix(block_size, n_embd),
-    "lm_head": matrix(vocab_size, n_embd),
+    # word token embedding
+    "wte": wte,
+    # work/weight position embedding
+    "wpe": wpe,
+    "lm_head": lm_head,
 }
+
 for i in range(n_layer):
+
     state_dict[f"layer{i}.attn_wq"] = matrix(n_embd, n_embd)
+
+    # los attn_wk and attn_wv forman parte del kv_cache
+    # sirven para saber que tokens anteriores son importantes
+    # para un determinado token
+    # attention work key
     state_dict[f"layer{i}.attn_wk"] = matrix(n_embd, n_embd)
+
+    # attention work value
     state_dict[f"layer{i}.attn_wv"] = matrix(n_embd, n_embd)
+
     state_dict[f"layer{i}.attn_wo"] = matrix(n_embd, n_embd)
+
     state_dict[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)
     state_dict[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)
+
 params = [
     p for mat in state_dict.values() for row in mat for p in row
 ]  # flatten params into a single list[Value]
+
+# print(state_dict)
 print(f"num params: {len(params)}")
+
+assert 1 == 2
 
 
 # Define the model architecture: a function mapping tokens and parameters to logits over what comes next
