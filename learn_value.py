@@ -50,17 +50,12 @@ class Value:
 
     def __repr__(self):
         _repr = f"""
-        Value(
-            data={self.data},
-            children={self._children},
-            local_grads={self._local_grads}
-        )
-        """
-
-        _repr = f"""
-        Value(
-            data={self.data},
-        )
+            Value(
+                data={self.data},
+                grad={self.grad},
+                children={self._children},
+                local_grads={self._local_grads}
+            )
         """
 
         return _repr
@@ -153,41 +148,13 @@ if __name__ == "__main__":
     print("Inputs")
     print(val1, val2)
 
-#    suma_vals = val1 + val2
-#    print(suma_vals)
+    print("truediv")
+    true_div_ = val1.__truediv__(val2)
+    print(true_div_)
+
+    print("rtruediv")
+    true_div2_ = val1 / val2
+    print(true_div2_)
+
+#    val1.backward()
 #
-#    mult_vals = val1 * val2
-#    print(mult_vals)
-#
-#    pot_vals = val1 ** 15
-#    print(pot_vals)
-#
-#    print(val1.log())
-#    print(val1.relu())
-
-#     print(-val1)
-
-
-#    suma_vals_inv = val2 + val1
-#    print(suma_vals_inv)
-
-#    print("resta")
-#    resta_vals = val1 - val2
-#    print(resta_vals)
-#
-#    print("resta inv")
-#    resta_vals_inv = val2 - val1
-#    print(resta_vals_inv)
-#
-#    print("mult inv")
-#    mult_vals_inv = val2 * val1
-#    print(mult_vals_inv)
-
-#    true_div_ = val1.__truediv__(val2)
-#    print(true_div_)
-#
-#    true_div2_ = val1 / val2
-#    print(true_div2_)
-
-    val1.backward()
-

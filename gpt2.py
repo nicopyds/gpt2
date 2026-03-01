@@ -108,72 +108,526 @@ class Value:
         self._local_grads = local_grads
 
     def __repr__(self):
-        _repr = f"""
-        Value(
-            data={self.data},
-            children={self._children},
-            local_grads={self._local_grads}
-        )
         """
+        Esta función dunder de Python sirve para hacer la "representación"
+        del objeto con el que estamos trabajando.
 
-        _repr = f"""
-        Value(data={self.data})
+        A nosotros nos ayuda, cuando hacemos un print del objeto, ver sus principales
+        atributos y "reproducir" este objeto.
+
+        En caso contrario, cuando hacemos un print, tendríamos la dirección del
+        objeto en memoria.
         """
-
+        _repr = f"""
+            Value(
+                data={self.data},
+                grad={self.grad},
+                children={self._children},
+                local_grads={self._local_grads}
+            )
+        """
         return _repr
 
     def __add__(self, other: Union[Value, int]) -> Value:
-        """Suma self.data con other.data"""
+        """
+        Suma self.data con other.data
 
-        # check is es de la clase Value y la convertimos en caso contrario
+        Dunder add, le dice a Python, como debe sumar los objetos cuando se
+        encuentra con algo parecido a: val1 + val2
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10.0)
+        val2 = Value(data=15.0)
+        val3 = val1 + val2
+
+        Outputs:
+        Value(
+            data=25.0,
+            grad=0,
+            children=(
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+                Value(
+                    data=15.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+            local_grads=(1,1)
+        )
+        """
         other = other if isinstance(other, Value) else Value(other)
 
-        # devolvemos una instancia de Value, sumando sus data + other.data
         return Value(self.data + other.data, (self, other), (1, 1))
 
     def __mul__(self, other: Union[Value, int]) -> Value:
-        """Multiplica self.data con other.data"""
+        """
+        Multiplica self.data con other.data
 
-        # check is es de la clase Value y la convertimos en caso contrario
+        Dunder mul, le dice a Python, como debe multiplicar los objetos cuando se
+        encuentra con algo parecido a: val1 * val2
+
+        val3 = val1 * val2
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10.0)
+        val2 = Value(data=15.0)
+        val1 * val2
+
+        Outputs:
+        Value(
+            data=150.0,
+            grad=0,
+            children=(
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+                Value(
+                    data=15.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                )
+            ),
+            local_grads=(15.0, 10.0)
+        )
+        """
         other = other if isinstance(other, Value) else Value(other)
 
-        # devolvemos una instancia de Value, multiplicando sus data + other.data
         return Value(self.data * other.data, (self, other), (other.data, self.data))
 
     def __pow__(self, other: Union[Value, int]) -> Value:
-        """Potencia self.data con other.data"""
+        """
+        Potencia self.data con other.data
 
-        # devolvemos una instancia de Value, multiplicando sus data + other.data
+        Dunder pow, le dice a Python, como debe elevar los objetos cuando se
+        encuentra con algo parecido a: val1 ** val2
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10.0)
+        val2 = Value(data=15.0)
+        val1 ** val2
+
+        Outputs:
+
+        Value(
+            data=1000000000000000.0,
+            grad=0,
+            children=(
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                )
+            ),
+            local_grads=(1500000000000000.0,)
+        )
+        """
         return Value(self.data**other, (self,), (other * self.data ** (other - 1),))
 
     def log(self):
+        """
+        Este método, no es un dunder method, calcula el logaritmo directamente.
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10)
+        val1.log()
+
+        Outputs:
+        Value(
+            data=2.302585092994046,
+            grad=0,
+            children=(
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                )
+            ),
+            local_grads=(0.1,)
+        )
+        """
+
         return Value(math.log(self.data), (self,), (1 / self.data,))
 
     def exp(self):
+        """
+        Este método, no es un dunder method, calcula la exponenciación directamente.
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10)
+        val1.exp()
+
+        Es el número irracional `e` ** 10
+
+        Outputs:
+        Value(
+            data=22026.465794806718,
+            grad=0,
+            children=(
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+            local_grads=(22026.465794806718,)
+        )
+        """
         return Value(math.exp(self.data), (self,), (math.exp(self.data),))
 
     def relu(self):
+        """
+        Función básica de activación.
+
+        Si el valor es negativo, devolvemos cero en caso contrario devolvemos el
+        propio valor.
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10)
+        val1.relu()
+
+        Outputs:
+        Value(
+           data=10.0,
+           grad=0,
+           children=(
+               Value(
+                   data=10.0,
+                   grad=0,
+                   children=(),
+                   local_grads=()
+               ),
+           local_grads=(1.0,)
+        )
+
+        """
         return Value(max(0, self.data), (self,), (float(self.data > 0),))
 
     def __neg__(self):
+        """
+        Dunder method que permite a Python tratar este tipo de operaciones.
+        val1 = Value(data=10)
+        -val1
+
+        Utilizará debajo, el método __mul__(other=-1)
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10)
+        -val1
+
+        Outputs:
+        Value(
+            data=-10.0,
+            grad=0,
+            children=(
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                )
+                ,
+                Value(
+                    data=-1,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                )
+            ),
+            local_grads=(-1, 10.0)
+        )
+        """
         return self * -1
 
     def __radd__(self, other):
+        """
+        Suma other.data con self.data
+
+        El método de __radd__ es reverse add. Cuando el __add__ habitual
+        te devuelve un NotImplementedError.
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10.0)
+        val2 = Value(data=15.0)
+        val3 = val2 + val1
+
+        Outputs:
+        Value(
+            data=25.0,
+            grad=0,
+            children=(
+                Value(
+                    data=15.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+            local_grads=(1, 1)
+        )
+        """
+
         return self + other
 
     def __sub__(self, other):
+        """
+        Operación de resta en Python.
+        Para que el lenguaje sepa que hacer cuando se encuentra con
+        val1 - val2
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10.0)
+        val2 = Value(data=15.0)
+        val3 = val1 - val2
+
+        Outputs:
+        Value(
+            data=-5.0,
+            grad=0,
+            children=(
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+                Value(
+                    data=-15.0,
+                    grad=0,
+                    children=(
+                        Value(
+                            data=15.0,
+                            grad=0,
+                            children=(),
+                            local_grads=()
+                        ),
+                        Value(
+                            data=-1,
+                            grad=0,
+                            children=(),
+                            local_grads=()
+                        )),
+                    local_grads=(-1, 15.0)
+                )),
+            local_grads=(1, 1)
+        )
+        """
+
         return self + (-other)
 
     def __rsub__(self, other):
+        """
+        Operación de resta inversa en Python.
+
+        El método de __rsub__ es reverse. Cuando el __sub__ habitual
+        te devuelve un NotImplementedError.
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10.0)
+        val2 = Value(data=15.0)
+        val3 = val2 - val1
+
+        Outputs:
+        Value(
+            data=5.0,
+            grad=0,
+            children=(
+                Value(
+                    data=15.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+                Value(
+                    data=-10.0,
+                    grad=0,
+                    children=(
+                        Value(
+                            data=10.0,
+                            grad=0,
+                            children=(),
+                            local_grads=()
+                        ),
+                        Value(
+                            data=-1,
+                            grad=0,
+                            children=(),
+                            local_grads=()
+                        )),
+                    local_grads=(-1, 10.0)
+                )),
+            local_grads=(1, 1)
+        )
+        """
         return other + (-self)
 
     def __rmul__(self, other):
+        """
+        Multiplica other.data con self.data
+
+        Dunder mul, le dice a Python, como debe multiplicar los objetos cuando se
+        encuentra con algo parecido a: val2 * val1
+
+        val3 = val2 * val1
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10.0)
+        val2 = Value(data=15.0)
+        val2 * val1
+
+        Outputs:
+        Value(
+            data=150.0,
+            grad=0,
+            children=(
+                Value(
+                    data=15.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                )
+            ),
+            local_grads=(10.0, 15.0)
+        )
+        """
+
         return self * other
 
     def __truediv__(self, other):
+        """
+        División en Python.
+        Para que el lenguaje sepa que hacer cuando se encuentra con
+        val3 = val1/val2
+
+        Ejemplos:
+        ---------
+
+        Inputs:
+        val1 = Value(data=10.0)
+        val2 = Value(data=15.0)
+        val2/val1
+
+        Outputs:
+        Value(
+            data=0.6666666666666666,
+            grad=0,
+            children=(
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+                Value(
+                    data=0.06666666666666667,
+                    grad=0,
+                    children=(
+                        Value(
+                            data=15.0,
+                            grad=0,
+                            children=(),
+                            local_grads=()
+                        )
+                    ),
+                    local_grads=(-0.0044444444444444444,)
+                )),
+            local_grads=(0.06666666666666667, 10.0)
+        )
+
+        """
         return self * other**-1
 
     def __rtruediv__(self, other):
+        """
+            División en Python.
+            Para que el lenguaje sepa que hacer cuando se encuentra con
+            val3 = val2/val1
+
+            Ejemplos:
+            ---------
+            Value(
+                data=0.6666666666666666,
+                grad=0,
+                children=(
+            Value(
+                data=10.0,
+                grad=0,
+                children=(),
+                local_grads=()
+            )
+        ,
+            Value(
+                data=0.06666666666666667,
+                grad=0,
+                children=(
+            Value(
+                data=15.0,
+                grad=0,
+                children=(),
+                local_grads=()
+            )
+        ,),
+                local_grads=(-0.0044444444444444444,)
+            )
+        ),
+                local_grads=(0.06666666666666667, 10.0)
+            )
+        """
+
         return other * self**-1
 
     def backward(self):
