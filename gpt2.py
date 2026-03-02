@@ -685,7 +685,21 @@ class Value:
         return other * self**-1
 
     def backward(self):
-        """ """
+        """
+        Con esta función construimos el grafo de computación y calculamos los gradients
+        de cada nodo.
+
+        Lo hacemos en 2 pasos: por un lado, usamos la función de build_topo para
+        recorrer todo el grafo y añadir todos y cada uno de los children.
+
+        En un segundo caso, recorremos el grafo de computación en orden inverso y
+        calculamos los gradients usando la Chain Rule.
+
+        Chain Rule:
+        -----------
+        child.grad += local_grad * v.grad.
+        𝜕L/𝜕child  += 𝜕L/𝜕v * 𝜕v/𝜕child
+        """
         topo = []
         visited = set()
 
@@ -702,68 +716,72 @@ class Value:
             for child, local_grad in zip(v._children, v._local_grads):
                 child.grad += local_grad * v.grad
 
-        print(self)
+
+# La profunfidad de nuestra Red Neuronal, tiene 1 única capa
+n_layer = 1
+
+# Nr de dimensiones  de nuestro embedding
+n_embd = 16
+
+# El tamaña del bloque de atención es 16, porque el nombre más largo es de 15 caracteres
+block_size = 16
+
+# number of attention heads
+n_head = 4
+
+# derived dimension of each head
+head_dim = n_embd // n_head
 
 
-# Initialize the parameters, to store the knowledge of the model
-n_layer = 1  # depth of the transformer neural network (number of layers)
-n_embd = 16  # width of the network (embedding dimension)
-block_size = 16  # maximum context length of the attention window (note: the longest name is 15 characters)
-n_head = 4  # number of attention heads
-head_dim = n_embd // n_head  # derived dimension of each head
+def matrix(
+    *, nout: int, nin: int, matrix_name=str, std: float = 0.08
+) -> list[list[Value]]:
+    matrix_ = [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
+    print(f"El tamaño de nuestra matriz {matrix_name} es ({nout}, {nin})")
+    return matrix_
 
 
-def matrix(nout, nin, std=0.08):
-    r_ = [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
-    print(f"El tamaño de nuestra matriz es ({nout}, {nin})")
-    # print(r_)
-    return r_
+# word token embedding
+wte = matrix(nout=vocab_size, nin=n_embd, matrix_name="wte")
 
+# work/weight position embedding
+wpe = matrix(nout=block_size, nin=n_embd, matrix_name="wpe")
 
-# completamente random
-print("wte")
-wte = matrix(vocab_size, n_embd)
-
-# completamente random
-print("wpe")
-wpe = matrix(block_size, n_embd)
-
-print("lm_head")
-lm_head = matrix(vocab_size, n_embd)
-
+lm_head = matrix(nout=vocab_size, nin=n_embd, matrix_name="lm_head")
 
 state_dict = {
-    # word token embedding
     "wte": wte,
-    # work/weight position embedding
     "wpe": wpe,
     "lm_head": lm_head,
 }
 
 for i in range(n_layer):
 
-    state_dict[f"layer{i}.attn_wq"] = matrix(n_embd, n_embd)
+    layer_ = f"layer{i}.attn_wq"
+    state_dict[layer_] = matrix(nout=n_embd, nin=n_embd, matrix_name=layer_)
 
     # los attn_wk and attn_wv forman parte del kv_cache
     # sirven para saber que tokens anteriores son importantes
     # para un determinado token
     # attention work key
-    state_dict[f"layer{i}.attn_wk"] = matrix(n_embd, n_embd)
+    layer_ = f"layer{i}.attn_wk"
+    state_dict[layer_] = matrix(nout=n_embd, nin=n_embd, matrix_name=layer_)
 
     # attention work value
-    state_dict[f"layer{i}.attn_wv"] = matrix(n_embd, n_embd)
+    layer_ = f"layer{i}.attn_wv"
+    state_dict[layer_] = matrix(nout=n_embd, nin=n_embd, matrix_name=layer_)
 
-    state_dict[f"layer{i}.attn_wo"] = matrix(n_embd, n_embd)
+    layer_ = f"layer{i}.attn_wo"
+    state_dict[layer_] = matrix(nout=n_embd, nin=n_embd, matrix_name=layer_)
 
-    state_dict[f"layer{i}.mlp_fc1"] = matrix(4 * n_embd, n_embd)
-    state_dict[f"layer{i}.mlp_fc2"] = matrix(n_embd, 4 * n_embd)
+    layer_ = f"layer{i}.mlp_fc1"
+    state_dict[layer_] = matrix(nout=4 * n_embd, nin=n_embd, matrix_name=layer_)
 
-params = [
-    p for mat in state_dict.values() for row in mat for p in row
-]  # flatten params into a single list[Value]
+    layer_ = f"layer{i}.mlp_fc2"
+    state_dict[layer_] = matrix(nout=n_embd, nin=4 * n_embd, matrix_name=layer_)
 
-# print(state_dict)
-print(f"num params: {len(params)}")
+# flatten params into a single list[Value]
+params = [p for mat in state_dict.values() for row in mat for p in row]
 
 
 # Define the model architecture: a function mapping tokens and parameters to logits over what comes next
@@ -804,7 +822,6 @@ def gpt(token_id, pos_id, keys, values):
         values[li].append(v)
         x_attn = []
         for h in range(n_head):
-            print("working")
             hs = h * head_dim
             q_h = q[hs : hs + head_dim]
             k_h = [ki[hs : hs + head_dim] for ki in keys[li]]
