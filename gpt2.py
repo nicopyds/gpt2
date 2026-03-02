@@ -92,19 +92,12 @@ class Value:
     __slots__ = ("data", "grad", "_children", "_local_grads")
 
     def __init__(
-        self, data: int, children: tuple = (), local_grads: tuple = ()
+        self, data: float, children: tuple = (), local_grads: tuple = ()
     ) -> None:
 
-        # scalar value of this node calculated during forward pass
         self.data = data
-
-        # derivative of the loss w.r.t. this node, calculated in backward pass
         self.grad = 0
-
-        # children of this node in the computation graph
         self._children = children
-
-        # local derivative of this node w.r.t. its children
         self._local_grads = local_grads
 
     def __repr__(self):
@@ -128,12 +121,21 @@ class Value:
         """
         return _repr
 
-    def __add__(self, other: Union[Value, int]) -> Value:
+    def __add__(self, other: Union[Value, float]) -> Value:
         """
         Suma self.data con other.data
 
         Dunder add, le dice a Python, como debe sumar los objetos cuando se
         encuentra con algo parecido a: val1 + val2
+
+        En el método de suma, la derivada local de la suma  es 1 para ambos
+        operandos, por eso local_grads=(1, 1)
+
+        f(a,b) = a+b
+        𝜕𝑓/𝜕𝑎  = 1
+        𝜕𝑓/𝜕𝑏  = 1
+
+        Un cambio en a o b produce el mismo cambio en f.
 
         Ejemplos:
         ---------
@@ -159,7 +161,8 @@ class Value:
                     grad=0,
                     children=(),
                     local_grads=()
-                ),
+                )
+            ),
             local_grads=(1,1)
         )
         """
@@ -167,7 +170,7 @@ class Value:
 
         return Value(self.data + other.data, (self, other), (1, 1))
 
-    def __mul__(self, other: Union[Value, int]) -> Value:
+    def __mul__(self, other: Union[Value, float]) -> Value:
         """
         Multiplica self.data con other.data
 
@@ -175,6 +178,18 @@ class Value:
         encuentra con algo parecido a: val1 * val2
 
         val3 = val1 * val2
+
+        En el método de multiplicar, la derivada local de la multiplicación es el valor
+        del otro operando, por eso local_grads=(other.data, self.data).
+
+        Se han intercambiado los operandos.
+
+        f(a,b) = a*b
+        𝜕𝑓/𝜕𝑎  = b
+        𝜕𝑓/𝜕𝑏  = a
+
+        La derivada de la multiplicación respecto a un factor es el valor del otro
+        factor.
 
         Ejemplos:
         ---------
@@ -200,7 +215,7 @@ class Value:
                     grad=0,
                     children=(),
                     local_grads=()
-                )
+                ),
             ),
             local_grads=(15.0, 10.0)
         )
@@ -215,6 +230,13 @@ class Value:
 
         Dunder pow, le dice a Python, como debe elevar los objetos cuando se
         encuentra con algo parecido a: val1 ** val2
+
+        f(a)  = a**n, donde n es una constante
+        𝜕𝑓/𝜕𝑎 = n*a**n-1
+
+        La derivada de a**3 = 3*a**2
+        La derivada de a**4 = 4*a**3
+        etc
 
         Ejemplos:
         ---------
@@ -235,7 +257,7 @@ class Value:
                     grad=0,
                     children=(),
                     local_grads=()
-                )
+                ),
             ),
             local_grads=(1500000000000000.0,)
         )
@@ -244,7 +266,15 @@ class Value:
 
     def log(self):
         """
-        Este método, no es un dunder method, calcula el logaritmo directamente.
+        Este método, no es un dunder method, calcula el logaritmo de un valor.
+
+        f(a)  = ln(a)
+        ∂f/∂a = 1/a
+
+        La derivada del logaritmo es 1/a.
+        Si a es 10, la derivada es 0.1.
+        Si a es 100, la derivada es 0.01
+        Cuanto más grande es a, más pequeña es la derivada del logaritmo.
 
         Ejemplos:
         ---------
@@ -263,7 +293,7 @@ class Value:
                     grad=0,
                     children=(),
                     local_grads=()
-                )
+                ),
             ),
             local_grads=(0.1,)
         )
@@ -273,7 +303,13 @@ class Value:
 
     def exp(self):
         """
-        Este método, no es un dunder method, calcula la exponenciación directamente.
+        Este método, no es un dunder method, calcula la exponenciación de un valor.
+
+        f(a)  = e**a
+        𝜕f/𝜕𝑎 = e**a
+
+        La derivada de la exponenciación es la propia función exponencial.
+        Por este motivo se usa tanto en las Redes Neuronales, es muy trivial calcularla.
 
         Ejemplos:
         ---------
@@ -295,6 +331,7 @@ class Value:
                     children=(),
                     local_grads=()
                 ),
+            ),
             local_grads=(22026.465794806718,)
         )
         """
@@ -306,6 +343,18 @@ class Value:
 
         Si el valor es negativo, devolvemos cero en caso contrario devolvemos el
         propio valor.
+
+        f(a)=max(0,a) = {a if a>0
+                        {0 if a≤0
+        𝜕𝑓/𝜕𝑎         = {1 if a > 0
+                        {0 if a ≤ 0
+
+        La ReLu actúa de la siguiente manera:
+        Si el valor es negativo, la derivada es cero, por lo que no se propaga el
+        gradiente.
+
+        Si el valor es positivo, la derivada es 1, por lo que el gradiente se propaga
+        sin cambios.
 
         Ejemplos:
         ---------
@@ -325,6 +374,7 @@ class Value:
                    children=(),
                    local_grads=()
                ),
+            ),
            local_grads=(1.0,)
         )
 
@@ -356,8 +406,7 @@ class Value:
                     grad=0,
                     children=(),
                     local_grads=()
-                )
-                ,
+                ),
                 Value(
                     data=-1,
                     grad=0,
@@ -401,7 +450,8 @@ class Value:
                     grad=0,
                     children=(),
                     local_grads=()
-                ),
+                )
+            ),
             local_grads=(1, 1)
         )
         """
@@ -448,9 +498,11 @@ class Value:
                             grad=0,
                             children=(),
                             local_grads=()
-                        )),
+                        )
+                    ),
                     local_grads=(-1, 15.0)
-                )),
+                )
+            ),
             local_grads=(1, 1)
         )
         """
@@ -498,9 +550,11 @@ class Value:
                             grad=0,
                             children=(),
                             local_grads=()
-                        )),
+                        )
+                    ),
                     local_grads=(-1, 10.0)
-                )),
+                )
+            ),
             local_grads=(1, 1)
         )
         """
@@ -581,10 +635,11 @@ class Value:
                             grad=0,
                             children=(),
                             local_grads=()
-                        )
+                        ),
                     ),
                     local_grads=(-0.0044444444444444444,)
-                )),
+                )
+            ),
             local_grads=(0.06666666666666667, 10.0)
         )
 
@@ -593,44 +648,44 @@ class Value:
 
     def __rtruediv__(self, other):
         """
-            División en Python.
-            Para que el lenguaje sepa que hacer cuando se encuentra con
-            val3 = val2/val1
+        División en Python.
+        Para que el lenguaje sepa que hacer cuando se encuentra con
+        val3 = val2/val1
 
-            Ejemplos:
-            ---------
-            Value(
-                data=0.6666666666666666,
-                grad=0,
-                children=(
-            Value(
-                data=10.0,
-                grad=0,
-                children=(),
-                local_grads=()
-            )
-        ,
-            Value(
-                data=0.06666666666666667,
-                grad=0,
-                children=(
-            Value(
-                data=15.0,
-                grad=0,
-                children=(),
-                local_grads=()
-            )
-        ,),
-                local_grads=(-0.0044444444444444444,)
-            )
-        ),
-                local_grads=(0.06666666666666667, 10.0)
-            )
+        Ejemplos:
+        ---------
+        Value(
+            data=0.6666666666666666,
+            grad=0,
+            children=(
+                Value(
+                    data=10.0,
+                    grad=0,
+                    children=(),
+                    local_grads=()
+                ),
+                Value(
+                    data=0.06666666666666667,
+                    grad=0,
+                    children=(
+                        Value(
+                            data=15.0,
+                            grad=0,
+                            children=(),
+                            local_grads=()
+                        ),
+                    ),
+                    local_grads=(-0.0044444444444444444,)
+                )
+            ),
+            local_grads=(0.06666666666666667, 10.0)
+        )
         """
 
         return other * self**-1
 
     def backward(self):
+        """ """
         topo = []
         visited = set()
 
@@ -646,6 +701,8 @@ class Value:
         for v in reversed(topo):
             for child, local_grad in zip(v._children, v._local_grads):
                 child.grad += local_grad * v.grad
+
+        print(self)
 
 
 # Initialize the parameters, to store the knowledge of the model
@@ -708,8 +765,6 @@ params = [
 # print(state_dict)
 print(f"num params: {len(params)}")
 
-assert 1 == 2
-
 
 # Define the model architecture: a function mapping tokens and parameters to logits over what comes next
 # Follow GPT-2, blessed among the GPTs, with minor differences: layernorm -> rmsnorm, no biases, GeLU -> ReLU
@@ -749,6 +804,7 @@ def gpt(token_id, pos_id, keys, values):
         values[li].append(v)
         x_attn = []
         for h in range(n_head):
+            print("working")
             hs = h * head_dim
             q_h = q[hs : hs + head_dim]
             k_h = [ki[hs : hs + head_dim] for ki in keys[li]]
