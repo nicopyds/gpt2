@@ -344,8 +344,8 @@ class Value:
         Si el valor es negativo, devolvemos cero en caso contrario devolvemos el
         propio valor.
 
-        f(a)=max(0,a) = {a if a>0
-                        {0 if a≤0
+        f(a)=max(0,a) = {a if a > 0
+                        {0 if a ≤ 0
         𝜕𝑓/𝜕𝑎         = {1 if a > 0
                         {0 if a ≤ 0
 
@@ -389,6 +389,9 @@ class Value:
 
         Utilizará debajo, el método __mul__(other=-1)
 
+        Dado que debajo se utiliza el `self * -1`, la derivada local se calcula
+        igual que en el caso de la multiplicación.
+
         Ejemplos:
         ---------
 
@@ -425,6 +428,9 @@ class Value:
 
         El método de __radd__ es reverse add. Cuando el __add__ habitual
         te devuelve un NotImplementedError.
+
+        Dado que se utiliza el método `__add__`, la derivada se calcula igual que en
+        el caso de la suma.
 
         Ejemplos:
         ---------
@@ -463,6 +469,9 @@ class Value:
         Operación de resta en Python.
         Para que el lenguaje sepa que hacer cuando se encuentra con
         val1 - val2
+
+        Debajo se utiliza el siguiente método: self + (-other) por tanto, la  derivada
+        se calcula igual que en el caso de la suma y la multiplicación por -1.
 
         Ejemplos:
         ---------
@@ -513,8 +522,11 @@ class Value:
         """
         Operación de resta inversa en Python.
 
-        El método de __rsub__ es reverse. Cuando el __sub__ habitual
-        te devuelve un NotImplementedError.
+        El método de __rsub__ es reverse. Cuando el __sub__ habitual te devuelve un
+        NotImplementedError.
+
+        Debajo se utiliza el siguiente método: other + (-self) por tanto, la  derivada
+        se calcula igual que en el caso de la suma y la multiplicación por -1.
 
         Ejemplos:
         ---------
@@ -569,6 +581,10 @@ class Value:
 
         val3 = val2 * val1
 
+        En el caso de la derivada de este método, se utiliza el mismo método que en
+        __mul__, por este motivo el calculo de la derivada es el mismo que en el caso
+        de la multiplicación.
+
         Ejemplos:
         ---------
 
@@ -606,6 +622,9 @@ class Value:
         División en Python.
         Para que el lenguaje sepa que hacer cuando se encuentra con
         val3 = val1/val2
+
+        Debajo se utilizan estos métodos: self * other**-1 por tanto para calcular la
+        derivada usamos `la potencia` y `la multiplicación`.
 
         Ejemplos:
         ---------
@@ -651,6 +670,9 @@ class Value:
         División en Python.
         Para que el lenguaje sepa que hacer cuando se encuentra con
         val3 = val2/val1
+
+        Debajo se utilizan estos métodos: other * self**-1 por tanto para calcular la
+        derivada usamos `la potencia` y `la multiplicación`.
 
         Ejemplos:
         ---------
@@ -723,7 +745,7 @@ n_layer = 1
 # Nr de dimensiones  de nuestro embedding
 n_embd = 16
 
-# El tamaña del bloque de atención es 16, porque el nombre más largo es de 15 caracteres
+# El tamaño del bloque de atención es 16, porque el nombre más largo es de 15 caracteres
 block_size = 16
 
 # number of attention heads
@@ -736,6 +758,22 @@ head_dim = n_embd // n_head
 def matrix(
     *, nout: int, nin: int, matrix_name=str, std: float = 0.08
 ) -> list[list[Value]]:
+    """
+    Genera una matriz de dimensiones (nout, nin) con valores inicializados
+    aleatoriamente y que posteriormente los usaremos como pesos de nuestra Red Neuronal.
+
+    Parameters:
+    -----------
+    nout: int, número de filas de la matriz (n-outer dimensions)
+    nin:  int, número de columnas de la matriz (n-inner dimensions)
+    matrix_name: str, nombre de la matriz, para poder identificarla en los prints
+    std: float, desviación estándar de la distribución gaussiana para la inicialización
+
+    Returns:
+    --------
+    matrix_: list[list[Value]], matriz de dimensiones (nout, nin) con valores
+             inicializados.
+    """
     matrix_ = [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
     print(f"El tamaño de nuestra matriz {matrix_name} es ({nout}, {nin})")
     return matrix_
@@ -784,9 +822,8 @@ for i in range(n_layer):
 params = [p for mat in state_dict.values() for row in mat for p in row]
 
 
-# Define the model architecture: a function mapping tokens and parameters to logits over what comes next
-# Follow GPT-2, blessed among the GPTs, with minor differences: layernorm -> rmsnorm, no biases, GeLU -> ReLU
 def linear(x, w):
+    """ """
     return [sum(wi * xi for wi, xi in zip(wo, x)) for wo in w]
 
 
@@ -804,12 +841,14 @@ def rmsnorm(x):
 
 
 def gpt(token_id, pos_id, keys, values):
+
     tok_emb = state_dict["wte"][token_id]  # token embedding
     pos_emb = state_dict["wpe"][pos_id]  # position embedding
+
     x = [t + p for t, p in zip(tok_emb, pos_emb)]  # joint token and position embedding
-    x = rmsnorm(
-        x
-    )  # note: not redundant due to backward pass via the residual connection
+
+    # note: not redundant due to backward pass via the residual connection
+    x = rmsnorm(x)
 
     for li in range(n_layer):
         # 1) Multi-head Attention block
@@ -859,12 +898,14 @@ v = [0.0] * len(params)  # second moment buffer
 num_steps = 1000  # number of training steps
 for step in range(num_steps):
 
-    # Take single document, tokenize it, surround it with BOS special token on both sides
+    # Take single document, tokenize it, surround it with BOS special token on
+    # both sides
     doc = docs[step % len(docs)]
     tokens = [BOS] + [uchars.index(ch) for ch in doc] + [BOS]
     n = min(block_size, len(tokens) - 1)
 
-    # Forward the token sequence through the model, building up the computation graph all the way to the loss
+    # Forward the token sequence through the model, building up the computation
+    # graph all the way to the loss
     keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
     losses = []
     for pos_id in range(n):
@@ -880,7 +921,8 @@ for step in range(num_steps):
     # Backward the loss, calculating the gradients with respect to all model parameters
     loss.backward()
 
-    # Adam optimizer update: update the model parameters based on the corresponding gradients
+    # Adam optimizer update: update the model parameters based on the
+    # corresponding gradients
     lr_t = learning_rate * (1 - step / num_steps)  # linear learning rate decay
     for i, p in enumerate(params):
         m[i] = beta1 * m[i] + (1 - beta1) * p.grad
