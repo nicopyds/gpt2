@@ -1,5 +1,7 @@
+# pylint: disable=too-many-lines, too-many-locals
+
 """
-Teardown del script de Karpathy donde implementa el algoritmo de GPT2
+Despiece del script de Karpathy donde implementa el algoritmo de GPT2
 ---------------------------------------------------------------------
 
 El original se puede encontrar en este enlace
@@ -15,6 +17,10 @@ Python. This file is the complete algorithm. Everything else is just efficiency.
 @karpathy
 """
 
+# ----------------------------
+# Imports and GLOBAL_VARS
+
+
 from __future__ import annotations
 
 import math
@@ -29,56 +35,13 @@ VERBOSE = True
 DIR_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
-def get_data() -> list[str]:
-    """
-    Miramos si tenemos o no datos dentro de carpeta donde tenemos el fichero gpt2.py
-    y en caso contrario lo descargamos para poder hacer luego nuestro entrenamiento.
-
-    Los datos se encuentran en este link:
-
-    https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt
-
-    Parameters:
-    -----------
-    None
-
-    Returns:
-    --------
-    docs: list[str] with the names found in the input.txt file
-    """
-    input_path_ = os.path.join(DIR_PATH, "input.txt")
-
-    if not os.path.exists(input_path_):
-        url_ = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
-        urllib.request.urlretrieve(url_, "input.txt")
-        docs = [line.strip() for line in open(input_path_) if line.strip()]
-
-    else:
-        docs = [line.strip() for line in open(input_path_) if line.strip()]
-
-    # random.shuffle se hace inplace
-    random.shuffle(docs)
-
-    return docs
-
-
-# dentro de docs tenemos una lista de nombres
-# con este código, hacemos una set de las letras únicas
-# docs = ['nico', 'paco']
-# ucahrs = ['a', 'c', 'i', 'n', 'o', 'p']
-docs = get_data()
-uchars = sorted(set("".join(docs)))
-
-# queremos tener un id de un token especial llamado Beginning of Sequence (BOS)
-# para ellos calculamos el len de nuestra uchars
-# el tamaño de nuestros tokens únicos es: ucars + BOS
-BOS = len(uchars)
-vocab_size = len(uchars) + 1
+# ----------------------------
+# Helper functions and classes
 
 
 class Value:
     """
-    Clase core del script que se encarga de calcular los gradients y construir el
+    Clase core del script que se encarga de calcular los gradientes y construir el
     grafo de computación.
     """
 
@@ -86,10 +49,10 @@ class Value:
     # __dict__ es muy flexible pero su naturaleza dinámica es más costosa a nivel de
     # memoria y velocidad
     # nosotros vamos a tener millones de instancias de Value pero no necesitamos
-    # atributos nuevos, como el suguiente: obj.foo = 42 (que __dict__) permitiría
+    # atributos nuevos, como el siguiente: obj.foo = 42 (que __dict__) permitiría
     # por este motivo, vamos a usar __slots__ y Python únicamente creará estos atributos
-    # __slots__ elimina la parte "dinámica" de un diccionari
-    __slots__ = ("data", "grad", "_children", "_local_grads")
+    # __slots__ elimina la parte "dinámica" de un diccionario
+    __slots__ = ("data", "grad", "children", "local_grads")
 
     def __init__(
         self, data: float, children: tuple = (), local_grads: tuple = ()
@@ -97,12 +60,12 @@ class Value:
 
         self.data = data
         self.grad = 0
-        self._children = children
-        self._local_grads = local_grads
+        self.children = children
+        self.local_grads = local_grads
 
     def __repr__(self):
         """
-        Esta función dunder de Python sirve para hacer la "representación"
+        Esta función dunder de Python sirve para hacer la "reconstrucción"
         del objeto con el que estamos trabajando.
 
         A nosotros nos ayuda, cuando hacemos un print del objeto, ver sus principales
@@ -115,17 +78,17 @@ class Value:
             Value(
                 data={self.data},
                 grad={self.grad},
-                children={self._children},
-                local_grads={self._local_grads}
+                children={self.children},
+                local_grads={self.local_grads}
             )
         """
         return _repr
 
-    def __add__(self, other: Union[Value, float]) -> Value:
+    def __add__(self, other: Union[Value, int, float]) -> Value:
         """
         Suma self.data con other.data
 
-        Dunder add, le dice a Python, como debe sumar los objetos cuando se
+        Dunder add, le dice a Python, cómo debe sumar los objetos cuando se
         encuentra con algo parecido a: val1 + val2
 
         En el método de suma, la derivada local de la suma  es 1 para ambos
@@ -170,11 +133,11 @@ class Value:
 
         return Value(self.data + other.data, (self, other), (1, 1))
 
-    def __mul__(self, other: Union[Value, float]) -> Value:
+    def __mul__(self, other: Union[Value, int, float]) -> Value:
         """
         Multiplica self.data con other.data
 
-        Dunder mul, le dice a Python, como debe multiplicar los objetos cuando se
+        Dunder mul, le dice a Python, cómo debe multiplicar los objetos cuando se
         encuentra con algo parecido a: val1 * val2
 
         val3 = val1 * val2
@@ -224,11 +187,11 @@ class Value:
 
         return Value(self.data * other.data, (self, other), (other.data, self.data))
 
-    def __pow__(self, other: Union[Value, int]) -> Value:
+    def __pow__(self, other: Union[float, int]) -> Value:
         """
         Potencia self.data con other.data
 
-        Dunder pow, le dice a Python, como debe elevar los objetos cuando se
+        Dunder pow, le dice a Python, cómo debe elevar los objetos cuando se
         encuentra con algo parecido a: val1 ** val2
 
         f(a)  = a**n, donde n es una constante
@@ -349,7 +312,7 @@ class Value:
         𝜕𝑓/𝜕𝑎         = {1 if a > 0
                         {0 if a ≤ 0
 
-        La ReLu actúa de la siguiente manera:
+        La ReLU actúa de la siguiente manera:
         Si el valor es negativo, la derivada es cero, por lo que no se propaga el
         gradiente.
 
@@ -422,12 +385,12 @@ class Value:
         """
         return self * -1
 
-    def __radd__(self, other):
+    def __radd__(self, other: Union[Value, int, float]) -> Value:
         """
         Suma other.data con self.data
 
         El método de __radd__ es reverse add. Cuando el __add__ habitual
-        te devuelve un NotImplementedError.
+        te devuelve un NotImplemented (sentinel).
 
         Dado que se utiliza el método `__add__`, la derivada se calcula igual que en
         el caso de la suma.
@@ -464,7 +427,7 @@ class Value:
 
         return self + other
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[Value, int, float]) -> Value:
         """
         Operación de resta en Python.
         Para que el lenguaje sepa que hacer cuando se encuentra con
@@ -518,7 +481,7 @@ class Value:
 
         return self + (-other)
 
-    def __rsub__(self, other):
+    def __rsub__(self, other: Union[Value, int, float]) -> Value:
         """
         Operación de resta inversa en Python.
 
@@ -572,7 +535,7 @@ class Value:
         """
         return other + (-self)
 
-    def __rmul__(self, other):
+    def __rmul__(self, other: Union[Value, int, float]) -> Value:
         """
         Multiplica other.data con self.data
 
@@ -617,7 +580,7 @@ class Value:
 
         return self * other
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union[Value, int, float]) -> Value:
         """
         División en Python.
         Para que el lenguaje sepa que hacer cuando se encuentra con
@@ -665,7 +628,7 @@ class Value:
         """
         return self * other**-1
 
-    def __rtruediv__(self, other):
+    def __rtruediv__(self, other: Union[Value, int, float]) -> Value:
         """
         División en Python.
         Para que el lenguaje sepa que hacer cuando se encuentra con
@@ -708,7 +671,7 @@ class Value:
 
     def backward(self):
         """
-        Con esta función construimos el grafo de computación y calculamos los gradients
+        Con esta función recorremos el grafo de computación y calculamos los gradients
         de cada nodo.
 
         Lo hacemos en 2 pasos: por un lado, usamos la función de build_topo para
@@ -728,35 +691,19 @@ class Value:
         def build_topo(v):
             if v not in visited:
                 visited.add(v)
-                for child in v._children:
+                for child in v.children:
                     build_topo(child)
                 topo.append(v)
 
         build_topo(self)
         self.grad = 1
         for v in reversed(topo):
-            for child, local_grad in zip(v._children, v._local_grads):
+            for child, local_grad in zip(v.children, v.local_grads):
                 child.grad += local_grad * v.grad
 
 
-# La profunfidad de nuestra Red Neuronal, tiene 1 única capa
-n_layer = 1
-
-# Nr de dimensiones  de nuestro embedding
-n_embd = 16
-
-# El tamaño del bloque de atención es 16, porque el nombre más largo es de 15 caracteres
-block_size = 16
-
-# number of attention heads
-n_head = 4
-
-# derived dimension of each head
-head_dim = n_embd // n_head
-
-
 def matrix(
-    *, nout: int, nin: int, matrix_name=str, std: float = 0.08
+    nout: int, nin: int, matrix_name=str, std: float = 0.08, verbose: bool = True
 ) -> list[list[Value]]:
     """
     Genera una matriz de dimensiones (nout, nin) con valores inicializados
@@ -775,9 +722,185 @@ def matrix(
              inicializados.
     """
     matrix_ = [[Value(random.gauss(0, std)) for _ in range(nin)] for _ in range(nout)]
-    print(f"El tamaño de nuestra matriz {matrix_name} es ({nout}, {nin})")
+
+    if verbose:
+        print(f"El tamaño de nuestra matriz {matrix_name} es ({nout}, {nin})")
+
     return matrix_
 
+
+def linear(x: list[Value], w: list[list[Value]]) -> list[Value]:
+    """
+    Multiplicación de vector por matriz de un vector de entrada x con una matriz de
+    pesos w.
+
+    Parameters:
+    -----------
+    x: list[Value], vector de entrada de dimensiones (nin,)
+    w: list[list[Value]], matriz de pesos de dimensiones (nout, nin)
+
+    Returns:
+    --------
+    r: list[Value], vector de salida de dimensiones (nout,)
+
+    Ejemplos:
+    ---------
+
+    Inputs:
+    x = [1, 2]
+    w = [[3, 3], [5, 5]]
+
+    Outputs:
+    r = [9, 15]
+
+    Donde 9  = 1 * 3 + 2 * 3
+      y   15 = 1 * 5 + 2 * 5
+    """
+
+    return [sum(wi * xi for wi, xi in zip(wo, x)) for wo in w]
+
+
+def softmax(logits: list[Value]) -> list[Value]:
+    """
+    Función de activación `softmax` que convierte un vector de logits en un vector
+    de probabilidades.
+
+    Dentro de la función, se resta el valor máximo de los logits para evitar problemas
+    de estabilidad numérica.
+
+    Podemos hacer esto, porque quitando a todos los logits el mismo valor, no altera la
+    distribución de probabilidades.
+
+    Parameters:
+    -----------
+    logits: list[Value], vector de entrada de dimensiones (n,)
+
+    Returns:
+    --------
+    probs: list[Value], las probabilidades tras aplicar el `softmax`.
+    """
+    max_val = max(val.data for val in logits)
+    exps = [(val - max_val).exp() for val in logits]
+    total = sum(exps)
+    probs = [e / total for e in exps]
+
+    return probs
+
+
+def rmsnorm(x: list[Value]) -> list[Value]:
+    """
+    Normalizamos el vector de entrada x utilizando la raíz cuadrada de la media de los
+    cuadrados.
+
+    Dentro de esta función realizamos varios pasos:
+    1. Se calcula el cuadrado (para que los negativos no compensen) de cada elemento
+       del vector de entrada x (sxi). En este caso medimos como de grande es nuestro
+       vector.
+
+    2. Se calcula la media de los cuadrados (ms).
+
+    3. Se calcula el valor que nos perimitirá que la suma del vector de salida al cuadrado
+       sea 1 (RMS). Para ello, calculamos el scale.
+       Dentro de scale, añadimos un valor pequeño (1e-5) para evitar problemas de
+       división por cero (cuando todos los elementos de x son cero).
+
+    4. Devolvemos un vector cuya raíz de suma de cuadrados (RMS) es 1 (xi * scale).
+
+    Parameters:
+    -----------
+    x: list[Value], vector de entrada de dimensiones (n,)
+
+    Returns:
+    --------
+    normalized_x: list[Value], vector de salida de dimensiones (n,) normalizado.
+
+    Ejemplos:
+    ---------
+
+    Inputs:
+    x = [0.3, 1.5]
+
+    Outputs:
+    [0.27734, 1.38674]
+
+    El RMS de output vector es ~ 1.
+
+    (sum([xi * xi for xi in [0.27734, 1.38674]])/2) ** 0.5 = 0.99999 = ~ 1
+    """
+    sxi = [xi * xi for xi in x]
+    lx = len(x)
+
+    # ms es mean square
+    ms = sum(sxi) / lx
+
+    # haces sqrt(ms + epsilon) ** -0.5
+    # es decir, 1/(mean square + epsilon)
+    scale = (ms + 1e-5) ** -0.5
+
+    return [xi * scale for xi in x]
+
+
+def get_data() -> list[str]:
+    """
+    Miramos si tenemos o no datos dentro de carpeta donde tenemos el fichero gpt2.py
+    y en caso contrario lo descargamos para poder hacer luego nuestro entrenamiento.
+
+    Los datos se encuentran en este link:
+
+    https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt
+
+    Parameters:
+    -----------
+    None
+
+    Returns:
+    --------
+    docs: list[str] with the names found in the input.txt file
+    """
+    input_path_ = os.path.join(DIR_PATH, "input.txt")
+
+    if not os.path.exists(input_path_):
+        url_ = "https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt"
+        urllib.request.urlretrieve(url_, "input.txt")
+
+    docs = [line.strip() for line in open(input_path_) if line.strip()]
+
+    # random.shuffle se hace inplace
+    random.shuffle(docs)
+
+    return docs
+
+
+# ----------------------------
+# GPT2 model hyperparameters
+
+# dentro de docs tenemos una lista de nombres
+# con este código, hacemos un set de las letras únicas
+# docs = ['nico', 'paco']
+# ucahrs = ['a', 'c', 'i', 'n', 'o', 'p']
+docs = get_data()
+uchars = sorted(set("".join(docs)))
+
+# queremos tener un id de un token especial llamado Beginning of Sequence (BOS)
+# para ellos calculamos el len de nuestra uchars
+# el tamaño de nuestros tokens únicos es: ucars + BOS
+BOS = len(uchars)
+vocab_size = len(uchars) + 1
+
+# La profunfidad de nuestra Red Neuronal, tiene 1 única capa
+n_layer = 1
+
+# Nr de dimensiones  de nuestro embedding
+n_embd = 16
+
+# El tamaño del bloque de atención es 16, porque el nombre más largo es de 15 caracteres
+block_size = 16
+
+# number of attention heads
+n_head = 4
+
+# derived dimension of each head
+head_dim = n_embd // n_head
 
 # word token embedding
 wte = matrix(nout=vocab_size, nin=n_embd, matrix_name="wte")
@@ -818,26 +941,7 @@ for i in range(n_layer):
     layer_ = f"layer{i}.mlp_fc2"
     state_dict[layer_] = matrix(nout=n_embd, nin=4 * n_embd, matrix_name=layer_)
 
-# flatten params into a single list[Value]
 params = [p for mat in state_dict.values() for row in mat for p in row]
-
-
-def linear(x, w):
-    """ """
-    return [sum(wi * xi for wi, xi in zip(wo, x)) for wo in w]
-
-
-def softmax(logits):
-    max_val = max(val.data for val in logits)
-    exps = [(val - max_val).exp() for val in logits]
-    total = sum(exps)
-    return [e / total for e in exps]
-
-
-def rmsnorm(x):
-    ms = sum(xi * xi for xi in x) / len(x)
-    scale = (ms + 1e-5) ** -0.5
-    return [xi * scale for xi in x]
 
 
 def gpt(token_id, pos_id, keys, values):
