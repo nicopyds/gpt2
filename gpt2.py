@@ -232,7 +232,7 @@ class Value:
         Este método, no es un dunder method, calcula el logaritmo de un valor.
 
         f(a)  = ln(a)
-        ∂f/∂a = 1/a
+        𝜕f/𝜕a = 1/a
 
         La derivada del logaritmo es 1/a.
         Si a es 10, la derivada es 0.1.
@@ -269,7 +269,7 @@ class Value:
         Este método, no es un dunder method, calcula la exponenciación de un valor.
 
         f(a)  = e**a
-        𝜕f/𝜕𝑎 = e**a
+        𝜕f/𝜕a = e**a
 
         La derivada de la exponenciación es la propia función exponencial.
         Por este motivo se usa tanto en las Redes Neuronales, es muy trivial calcularla.
@@ -830,7 +830,6 @@ def rmsnorm(x: list[Value]) -> list[Value]:
     sxi = [xi * xi for xi in x]
     lx = len(x)
 
-    # ms es mean square
     ms = sum(sxi) / lx
 
     # haces sqrt(ms + epsilon) ** -0.5
